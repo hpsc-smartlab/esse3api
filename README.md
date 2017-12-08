@@ -6,6 +6,12 @@
 - . venv/bin/activate
 - pip install --editable .
 
+### Server sicuro di produzione
+
+Sarà presto disponibile https://api.uniparthenope.it
+
+Al momento queste api non sono ancora state rilasciate per l'uso di produzione.
+
 ### Esecuzione in sviluppo ###
 
 ./bin/esse3api
@@ -28,10 +34,22 @@ No, ma sono open source (licenza MIT), quindi è possibile aggiugere nuove funzi
 
 No, devono essere installate su di un server che assicura l'uso di https
 
-- Posso modificare i miei voi?
+- Posso modificare i miei voti?
 
 No, non sei nel film WarGames (1983, https://it.wikipedia.org/wiki/Wargames_-_Giochi_di_guerra).
 Puoi fare solo quello che puoi fare collegandoti via web a https://uniparthenope.esse3.cineca.it e sono con le tue credenziali.
+
+- Posso implementare nuove funzionalità integrando altre api?
+
+E' esattamente quello che mi aspetto.
+
+- Quali devono essere le mie conoscenze informatiche per sviluppare queste api?
+
+Python e Technologie Web. Il corso TW e il corso APRA2 forniscono queste competenze.
+
+- Quali devono essere le mie conoscenze informatiche per utilizzare queste api?
+
+iOS/Swift e Tecnologie Web. I corsi Apple, il corso TMM e il corso TW forniscono queste competenze.
 
 ### Etica ###
 
