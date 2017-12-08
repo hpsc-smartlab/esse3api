@@ -1,0 +1,3 @@
+graft esse3api/templates
+graft esse3api/static
+include esse3api/schema.sql
