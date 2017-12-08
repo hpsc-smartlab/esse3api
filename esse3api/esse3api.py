@@ -21,10 +21,19 @@ from flask import g
 from flask import flash
 from flask import _app_ctx_stack
 
+from flask_restplus import Resource, Api
+from flask_restplus import fields
+
 from functools import wraps
 from functools import update_wrapper
 
+import logging
+import traceback
+
+log = logging.getLogger(__name__)
+
 app = Flask(__name__)
+api = Api(app)
 app.config.from_object(__name__) # load config from this file , esse3api.py
 
 # Load default config and override config from an environment variable
@@ -34,6 +43,14 @@ app.config.update(dict(
     PASSWORD='default'
 ))
 app.config.from_envvar('ESSE3API_SETTINGS', silent=True)
+
+@api.errorhandler
+def default_error_handler(e):
+    message = 'An unhandled exception occurred.'
+    log.exception(message)
+
+    if not settings.FLASK_DEBUG:
+        return {'message': message}, 500
 
 #### CROSSDOMAIN DECORATOR ####
 def crossdomain(origin=None, methods=None, headers=None, max_age=21600, attach_to_all=True, automatic_options=True):
@@ -92,198 +109,178 @@ def jsonp(func):
             return func(*args, **kwargs)
     return decorated_function
 
-@app.route('/')
-def index():
-    """Shows the home page
-    """
-    actions=[]
-    my_path=os.path.abspath(inspect.getfile(inspect.currentframe()))
-    print "my_path:"+my_path
-    with open(my_path) as f:
-        add=False
-        action=None
-        for line in f:
-            line=line.lstrip()
-            if line.startswith("@app."):
-                line=line.replace("@app.","").replace("'",'"').replace("\n","")
-                method=None
-                if line.startswith("route"):
-                    method="get"
-                    path=re.findall(r'"([^"]*)"', line)[0]
-                    if path != '/':
-                        action={"method":method,"url":cgi.escape(path),"params":[]}
-            elif line.startswith('"""') and action is not None:
-                if add is False:
-                    add=True
-                    action['title']=line.replace('"""','').strip()
-                else:
-                    add=False
-                    actions.append(action)
-                    action=None
-            elif line.startswith("@jsonp"):
-                action['jsonp']=True
-            elif line.startswith("@crossdomain"):
-                action['crossdomain']=True
-            else:
-                if add is True:
-                    if ":example:" in line:
-                        line=line.replace(":example:","").strip()
-                        action['example']=request.host+line
-                    elif line.startswith(":param"):
-                        line=line.replace(":param:","").strip()
-                        name=line.split(":")[0]
-                        desc=line.split(":")[1]
-                        action['params'].append({"name":name,"desc":desc})
-                    elif line.startswith(":returns:"):
-                        line=line.replace(":returns:","").strip()
-                        action['returns']=line
-                    else:
-                        pass
-    return render_template('layout.html',actions=actions)
+parser = api.parser()
+parser.add_argument('username', help='The username', location='form')
+parser.add_argument('password', help='The passowrd', location='form')
 
-@app.route('/test')
-def hello_world():
-    html='<p>Inserisci username e password istituzionale per testare l'' API</p><br><form action="/prenotazioni_effettuate" method="post"><input name="username"><input type="password" name="password"><input type="submit"></form>'
-    return html
+@api.route('/dati_personali')
+class DatiPersonali(Resource):
+    @api.doc(parser=parser)
+    def post(self):
+        """Recuper i dati personali
+        :param: username: Nome utente
+        :param: password: Password
 
-@app.route('/dati_personali',methods=['POST'])
-@jsonp
-def dati_personali() :
-    """Restituisce i dati personali
-    :param: username: Nome utente
-    :param: password: Password
+        :example: /dati_personali
 
-    :example: /dati_personali
+        :returns:  json -- I dati personali
+        -------------------------------------------------------------------------------------------
+        """
 
-    :returns:  json -- I dati dello studente
-    -------------------------------------------------------------------------------------------
+        args = parser.parse_args(strict=True)
+        username = args['username']
+        password = args['password']
 
-    """
-    username = request.form['username']
-    password = request.form['password']
-    s = Scraper(username, password)
-    return jsonify(s.dati_personali())
+        log.info(username)
+        
+        s = Scraper(username, password)
+        return jsonify(s.dati_personali())   
 
-@app.route('/login',methods=['POST'])
-@jsonp
-def login():
-    """Permette il login al portale esse3
-    :param: username: Nome utente
-    :param: password: Password
+@api.route('/login')
+class Login(Resource):
+    @api.doc(parser=parser)
+    def login(self):
+        """Permette il login al portale esse3
+        :param: username: Nome utente
+        :param: password: Password
 
-    :example: /login
+        :example: /login
 
-    :returns:  json -- Risultato del login
-    -------------------------------------------------------------------------------------------
+        :returns:  json -- Risultato del login
+        -------------------------------------------------------------------------------------------
+        """
 
-    """
-    username = request.form['username']
-    password = request.form['password']
-    s = Scraper(username, password)
-    return jsonify(s.login())
+        args = parser.parse_args(strict=True)
+        username = args['username']
+        password = args['password']
 
-@app.route('/riepilogo_esami',methods=['POST'])
-@jsonp
-def riepilogo_esami() :
-    """Restituisce il riepilogo degli esami effettuati dallo studente
-    :param: username: Nome utente
-    :param: password: Password
+        s = Scraper(username, password)
+        return jsonify(s.login())
 
-    :example: /riepilogo_esami
+@api.route('/riepilogo_esami')
+class RiepilogoEsami(Resource):
+    @api.doc(parser=parser)
+    def post(self) :
+        """Restituisce il riepilogo degli esami effettuati dallo studente
+        :param: username: Nome utente
+        :param: password: Password
 
-    :returns:  json -- Lista degli esami sostenuti
-    -------------------------------------------------------------------------------------------
+        :example: /riepilogo_esami
 
-    """
-    username = request.form['username']
-    password = request.form['password']
-    s = Scraper(username, password)
-    return jsonify(s.riepilogo_esami())
+        :returns:  json -- Lista degli esami sostenuti
+        -------------------------------------------------------------------------------------------
+        """
+        args = parser.parse_args(strict=True)
+        username = args['username']
+        password = args['password']
 
-@app.route('/residenza',methods=['POST'])
-def residenza() :
-    """Restituisce la residenza dello studente
-    :param: username: Nome utente
-    :param: password: Password
+        s = Scraper(username, password)
+        return jsonify(s.riepilogo_esami())
 
-    :example: /residenza
+@api.route('/residenza')
+class Residenza(Resource):
+    @api.doc(parser=parser)
+    def post(self) :
+        """Restituisce la residenza dello studente
+        :param: username: Nome utente
+        :param: password: Password
 
-    :returns:  json -- Residenza dello studente
-    -------------------------------------------------------------------------------------------
+        :example: /residenza
 
-    """
-    username = request.form['username']
-    password = request.form['password']
-    s = Scraper(username, password)
-    return jsonify(s.residenza())
+        :returns:  json -- Residenza dello studente
+        -------------------------------------------------------------------------------------------
+        """
 
-@app.route('/domicilio',methods=['POST'])
-def domicilio() :
-    """Restituisce il domicilio dello studente
-    :param: username: Nome utente
-    :param: password: Password
+        args = parser.parse_args(strict=True)
+        username = args['username']
+        password = args['password']
 
-    :example: /domicilio
+        s = Scraper(username, password)
+        return jsonify(s.residenza())
 
-    :returns:  json -- Domicilio dello studente
-    -------------------------------------------------------------------------------------------
+@api.route('/domicilio')
+class Domicilio(Resource):
+    @api.doc(parser=parser)
+    def post(self) :
+        """Restituisce il domicilio dello studente
+        :param: username: Nome utente
+        :param: password: Password
 
-    """
-    username = request.form['username']
-    password = request.form['password']
-    s = Scraper(username, password)
-    return jsonify(s.domicilio())
+        :example: /domicilio
 
-@app.route('/libretto',methods=['POST'])
-def libretto() :
-    """Restituisce il libretto universitario dello studente
-    :param: username: Nome utente
-    :param: password: Password
+        :returns:  json -- Domicilio dello studente
+        -------------------------------------------------------------------------------------------
+        """
 
-    :example: /libretto
+        args = parser.parse_args(strict=True)
+        username = args['username']
+        password = args['password']
 
-    :returns:  json -- Libretto dello studente
-    -------------------------------------------------------------------------------------------
+        s = Scraper(username, password)
+        return jsonify(s.domicilio())
 
-    """
-    username = request.form['username']
-    password = request.form['password']
-    s = Scraper(username, password)
-    return jsonify(s.libretto())
+@api.route('/libretto')
+class Libretto(Resource):
+    @api.doc(parser=parser)
+    def post(self) :
+        """Restituisce il libretto universitario dello studente
+        :param: username: Nome utente
+        :param: password: Password
+    
+        :example: /libretto
+    
+        :returns:  json -- Libretto dello studente
+        -------------------------------------------------------------------------------------------
+        """
 
-@app.route('/pagamenti',methods=['POST'])
-def pagamenti() :
-    """Restituisce i pagamenti effettuati dello studente
-    :param: username: Nome utente
-    :param: password: Password
+        args = parser.parse_args(strict=True)
+        username = args['username']
+        password = args['password']
 
-    :example: /pagamenti
+        s = Scraper(username, password)
+        return jsonify(s.libretto())
 
-    :returns:  json -- Pagamenti effettuati dallo studente
-    -------------------------------------------------------------------------------------------
+@api.route('/pagamenti')
+class Pagamenti(Resource):
+    @api.doc(parser=parser)
+    def post(self) :
+        """Restituisce i pagamenti effettuati dello studente
+        :param: username: Nome utente
+        :param: password: Password
 
-    """
-    username = request.form['username']
-    password = request.form['password']
-    s = Scraper(username, password)
-    return jsonify(s.pagamenti())
+        :example: /pagamenti
 
-@app.route('/prenotazioni_effettuate',methods=['POST'])
-def prenotazioni_effettuate() :
-    """Restituisce le prenotazioni alle sedute d'esame effettuati dello studente
-    :param: username: Nome utente
-    :param: password: Password
+        :returns:  json -- Pagamenti effettuati dallo studente
+        -------------------------------------------------------------------------------------------
+        """
 
-    :example: /prenotazioni_effettuate
+        args = parser.parse_args(strict=True)
+        username = args['username']
+        password = args['password']
 
-    :returns:  json -- Prenotazioni effettuate dallo studente
-    -------------------------------------------------------------------------------------------
+        s = Scraper(username, password)
+        return jsonify(s.pagamenti())
 
-    """
-    username = request.form['username']
-    password = request.form['password']
-    s = Scraper(username, password)
-    return jsonify(s.prenotazioni_effettuate())
+@api.route('/prenotazioni_effettuate')
+class PrenotazioniEffettuate(Resource):
+    @api.doc(parser=parser)
+    def post(self) :
+        """Restituisce le prenotazioni alle sedute d'esame effettuati dello studente
+        :param: username: Nome utente
+        :param: password: Password
+
+        :example: /prenotazioni_effettuate
+
+        :returns:  json -- Prenotazioni effettuate dallo studente
+        -------------------------------------------------------------------------------------------
+        """
+
+        args = parser.parse_args(strict=True)
+        username = args['username']
+        password = args['password']
+
+        s = Scraper(username, password)
+        return jsonify(s.prenotazioni_effettuate())
 
 if __name__ == '__main__':
     app.debug = True
