@@ -5,7 +5,7 @@ from datetime import datetime
 
 import time
 import csv
-from Scraper import Scraper
+from scraper import Scraper
 from flask import Flask
 from flask import Response
 from flask import request
