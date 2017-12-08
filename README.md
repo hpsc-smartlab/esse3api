@@ -12,6 +12,17 @@ Sarà presto disponibile https://api.uniparthenope.it
 
 Al momento queste api non sono ancora state rilasciate per l'uso di produzione.
 
+
+### Sviluppo ###
+
+Queste API fanno uso di http://flask-restplus.readthedocs.io/ per la documentazione.
+
+Nel file bin/esse3api è specificata la porta tcp su cui è aperto il server
+
+http://localhost:12001
+
+E' la url di default.
+
 ### Esecuzione in sviluppo ###
 
 ./bin/esse3api
