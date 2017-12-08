@@ -37,6 +37,7 @@ No, devono essere installate su di un server che assicura l'uso di https
 - Posso modificare i miei voti?
 
 No, non sei nel film WarGames (1983, https://it.wikipedia.org/wiki/Wargames_-_Giochi_di_guerra).
+
 Puoi fare solo quello che puoi fare collegandoti via web a https://uniparthenope.esse3.cineca.it e sono con le tue credenziali.
 
 - Posso implementare nuove funzionalità integrando altre api?
