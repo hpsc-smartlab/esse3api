@@ -7,13 +7,13 @@
   </div>
   <ul class="flashes">
       {% for action in actions %}
-        <li><em>{{ action['title'] }}</em><br/><a href="http://{{ action['example'] }}_test" target="_new">{{ action['example'] }}</a>
+        <li><em>{{ action['title'] }}</em><br/><a href="http://{{ action['example'] }}" target="_new">{{ action['example'] }}</a>
       {% endfor %}
       </ul>
   <div class="body">
   {% block body %}{% endblock %}
   </div>
   <div class="footer">
-    ESSE3 API &mdash; <a href="https://github.com/CCMMMA/esse3-api">CCMMMA/GitHub</a>
+    ESSE3 API &mdash; <a href="https://github.com/hpsc-smartlab/esse3api">HPSCSmartLab/GitHub</a>
   </div>
 </div>
