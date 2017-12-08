@@ -1,6 +1,6 @@
 # esse3api ESSE3 Web Application Program Interface
 
-*** Installazione con virtualenv ***
+### Installazione con virtualenv ###
 
 - virtualenv venv
 - . venv/bin/activate
