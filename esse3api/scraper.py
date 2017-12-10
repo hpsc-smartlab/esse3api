@@ -1,58 +1,27 @@
-#Importiamo una serie di moduli:
-#json: contiene la funzione 'dumps' che permette di codificare un dizionario in formato json
-#pycurl: un'interfaccia Python alla libreria libcurl. Verra' utilizzata principalmente per scaricare la pagina web inserendo 'username' e 'password' dove quest'ultima verra' criptata.
-#StringIO: la classe permette di creare una stringa che si "comporta" come un file. Infatti le istanze di tale classe hanno il metodo 'write'.
-#re: modulo che implementa le 'espressioni regolari' in stile linguaggio Perl. Questo modulo e' disponibile dalla versione 1.5 di Python e nelle versioni precedenti c'era un modulo per le espressioni regolari in stile Emacs
-
+# -*- coding: utf-8 -*-
 import json
 import pycurl
+#from flask import jsonify
 from pycurl import Curl
 from StringIO import StringIO
 import re
+#from bs4 import BeautifulSoup
+#import urllib2
+#import urllib
 
-#La classe Scraper e' il cuore del nostro programma. Contiene un costruttore ed una serie di metodi che consentono di accedere alle varie risorse:
-#__init__: ciascun costruttore in Python ha questo identificatore. Quando una classe contiene il metodo __init__, tutte le volte che viene creata un'istanza della classe viene invocato il costruttore per inizializzare i campi dell'oggetto appena creato. Ogni istanza della nostra classe contiene 'username' e 'password' che verranno utilizzati dal metodo __fetch_page per scaricare la pagina;
-#__fetch_page: esegue il download della pagina
-#__search_tag_contents: preleva il contenuto di un elemento HTML (es: il contenuto tra il tag di apertura <p> ed il tag di chiusura </p>. Inizialmente il metodo e' stato utilizzato, poi si e' scoperto che non serve piu' ai nostri scopi ma lo lasciamo perche' puo' tornarci utile in futuro
-#riepilogo_esami, dati_personali, residenza, domicilio, libretto, pagamenti, prenotazioni_effettuate: questi metodi sono autoesplicativi e verranno spiegati in dettaglio piu' avanti
+class Scraper:
 
-class Scraper : 
-
-    #Costruttore: ciascun costruttore in Python ha come primo parametro un riferimento all'oggetto che si sta costruendo e che abbiamo chiamato 'self'. Per i programmatori C++ questo e' l'equivalente del puntatore 'this'. La convenzione prevede che il parametro venga chiamato in questo modo, ma nessuno ci impedisce di chiamarlo in altro modo. Per evitare confusione e rendere piu' leggibile il programma abbiamo preferito seguire la convenzione dei programmatori Python. Quando viene istanziata la classe, il parametro 'self' verra' inizializzato automaticamente da Python. Noi ci dobbiamo preoccupare di fornire solo 'username' e 'password' come se il costruttore richiedesse effettivamente 2 parametri
-    def __init__(self, username, password) :
+    def __init__(self,username,password):
         self.__username = username
-	self.__password = password
+        self.__password = password
 
-    #Il metodo __fetch_page scarica la pagina utilizzando le credenziali di accesso. Questo metodo si appoggia sulla classe pycurl ed in particolare all'uso del costruttore 'Curl'. Prima di tutto vengono inizializzate le variabili che costituiscono le intestazioni del messaggio di richiesta HTTP.
-    #Anche in questo caso abbiamo il parametro 'self' e dobbiamo far finta che il metodo richieda obbligatoriamente solo il parametro 'url'
     def __fetch_page(self, url) :
-        
-	#Intestazioni del messaggio di richiesta HTTP
-        #useragent: questo e' il corrispondente dell'intestazione 'User-Agent' del protocollo HTTP. E' un'indicazione del tipo di Browser che si sta utilizzando per navigare in rete. Naturalmente non faremo uso di alcun Browser e tutto cio' che faremo e' solamente scaricare una pagina, senza interpretarne il codice HTML. Questa intestazione consente di 'ingannare' il server facendogli credere che stiamo utilizzando un Browser ordinario per eseguire le normali funzioni previste dalla piattaforma Esse3;
-        #encoding: questo e' l'equivalente dell'intestazione 'Accept-Encoding'. Indica una serie di codifiche che siamo propensi ad accettare da parte del server che contatteremo;
-        #httpheader: una lista (simile ad un array) di stringhe dove ciascuna stringa e' del tipo 'attributo: valore'. Contiene tutte le restanti intestazioni del protocollo HTTP oltre a quelle che abbiamo appena descritto:
-            #Accept: per indicare la tipologia di dati che possiamo ricevere senza problemi;
-            #application: il tipo di applicazione accettata;
-            #image: il formato immagine accettato;
-            #Accept-Language: in quale lingua accettiamo la pagina richiesta;
-            #Host: semplicemente l'hostname del server che contatteremo.
-        #cookiefile: il nome di un file di cookie che verra' creato localmente quando eseguiremo la prima richiesta HTTP. Quando i siti web richiedono 'username' e 'password' di solito chiedono al client di creare un cookie di sessione per evitare che l'utente inserisca molte volte le sue credenziali di accesso.
-        
-	useragent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.81 Safari/537.36'
+        useragent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.81 Safari/537.36'
         encoding = 'gzip, deflate, sdch'
         httpheader = ['Accept: text/html, application/xhtml+xml, application/xml; q=0.9, image/webp, */*; q=0.8', 'Accept-Language: it-IT, it; q=0.8, en-US; q=0.6, en; q=0.4', 'Host: uniparthenope.esse3.cineca.it']
         cookiefile = 'cookiefile'
 
-	#La prima richiesta HTTP serve per creare il cookie di sessione che verra' salvato locamente
-	#La variabile 'page' e' di tipo 'StringIO', una classe che implementa una stringa che 'imita' un file e le sue operazioni di Input/Output. 'page' sara' il contenuto della pagina scaricata.
-	#Creiamo un'istanza della classe class 'Curl' ed settiamo una serie di opzioni che influenzeranno la richiesta:
-	#FOLLOWLOCATION: se la pagina scaricata contiene l'intestazione 'Location: ' Curl effettuera' una nuova richiesta HTTP scegliendo come URL quella specificata proprio da 'Location';
-	#WRITEFUNCTION: serve per specificare una funzione che verra' invocata quando dovra' essere salvata la pagina. La funzione da invocare e' la funzione 'write' dell'oggetto StringIO
-	#COOKIEJAR: gli diamo il nome del file di cookie che dovra' essere creato qualora il server lo richiedesse;
-	#URL: semplicemente l'URL della pagina che vogliamo scaricare.
-
-	#Infine viene eseguito il metodo 'perform' per eseguire la richiesta.
-	page = StringIO()
+        page = StringIO()
         c = Curl()
         c.setopt(c.FOLLOWLOCATION, True)
         c.setopt(c.WRITEFUNCTION, page.write)
@@ -60,11 +29,9 @@ class Scraper :
         c.setopt(c.URL, url)
         c.perform()
         c.close()
-	page.close()
-        
-        #Una volta ottenuto il cookie creiamo un nuovo oggetto 'Curl' per eseguire la seconda richiesta. Questa volta verranno utilizzate, oltre alle intestazioni HTTP precedentemente specificate, 'username' e 'password' assieme al file di cookie.
-	#L'opzione 'REFERER' serve solo per indicare al server la pagina che abbiamo contattato immediatamente prima.
-	page = StringIO()
+        page.close()
+
+        page = StringIO()
         c = Curl()
         c.setopt(c.USERPWD, self.__username + ':' + self.__password)
         c.setopt(c.FOLLOWLOCATION, 1)
@@ -77,184 +44,40 @@ class Scraper :
         c.setopt(c.URL, url)
         c.perform()
 
-	#Il metodo 'getinfo' ci da' informazioni su cosa e' accaduto dopo aver eseguito la richiesta. Un'informazione che ci interessa in particolare e' il codice di stato. Se il codice e' diverso da 200 molto probabilmente non abbiamo inserito 'username' e 'password' corretti e verra' ritornato un valore 'None' che e' l'equivalente di 'NULL' in C++. Se il codice di stato e' 200 significa che tutto e' andato bene.
-	if(c.getinfo(pycurl.HTTP_CODE) != 200) : 
-	    return None
-	c.close()
+        if(c.getinfo(pycurl.HTTP_CODE) != 200) :
+            return None
+        c.close()
 
-	#Il metodo 'getvalue' e' per restituire un tipo 'str' (cioe' Stringa) a partire da un oggetto di tipi 'StringIO'.
-	#La funzione 'compile' fa parte del modulo 're' delle espressioni regolari. Faremo largo uso delle regex (d'ora in avanti le espressioni regolari verranno chiamate cosi') come in questo caso che vengono eliminati tutti i caratteri non stampabili (\n, \t, ecc.) dalla pagina per facilitare l'uso delle successiva regex applicate sempre alla stessa pagina.
-	page_str = page.getvalue()
-	page.close()
-	p = re.compile('\\s+')
-	page_str = p.sub(" ", page_str)
+        page_str = page.getvalue()
+        page.close()
+        p = re.compile('\\s+')
+        page_str = p.sub(" ", page_str)
 
-	#Restituisce la pagina web sottoforma di stringa
-	return page_str
+        return page_str
 
-    #Il metodo __search_tag_contents preleva il contenuto di un tag HTML tenendo conto di quelle situazioni in cui un tag e' contenuto in un tag dello stesso nome. Per esempio, se vogliamo prelevare il contenuto di un tag 'div' e questo contiene un altro tag 'div' allora il metodo capira' qual'e' il tag di chiusura corretto. Questa funzione e' identica al metodo 'getElementById' del DOM. Il metodo, inizialmente utilizzato nelle altre funzioni, non verra' usato ma lo lasceremo nel caso ci dovesse servire in futuro.
-
-    #####################################################################################################################
-    #I seguenti metodi vengono richiamati dal server quando si richiede la URL corrispondente.
-    #Es: nel caso di 'riepilogo_esami' questo verra' invocato quando eseguiamo una post sulla URL 'http://students.uniparthenope.it:[num_port]/UniparthenopeEsse3API/riepilogo_esami'.
-    #Tutti i metodi seguenti restituiranno un dizionario del tipo:
-    #    {'nome_metodo': info_relative_al_metodo}
-    #Inizialmente il dizionario e' del tipo:
-    #    {'nome_metodo': None}
-    #####################################################################################################################
 
     def login(self) :
-        #Metodo per effettuare il login
-	#La struttura dati 'result' e' del tipo: 
-	#    {
-	#        'login': 'valore'
-	#    }
-	#
-	#'valore' e' '0' se le credenziali non sono corrette.
-	#'valore' e' '1' se l'accesso e' stato effettuato con successo
-
-	#Preleviamo la pagina SOLO per verificare se ci siamo autenticati
         result = {'login': '0' }
         url = 'https://uniparthenope.esse3.cineca.it/auth/Home.do'
         page = self.__fetch_page(url)
 
-	#Se non ci siamo autenticati, viene restituito 'result' cosi' com'e' con 'valore' = '1'
-	if not page : 
-	    return result
-	result['login'] = '1'
-	#Codifica 'result' in formato JSON
-	return result
-    
-    def riepilogo_esami(self) : 
+        #Se non ci siamo autenticati, viene restituito 'result' cosi' com'e' con 'valore' = '1'
+        if not page :
+            return result
+        result['login'] = '1'
+        #Codifica 'result' in formato JSON
+        return json.dumps(result)
 
-	#Scarichiamo la pagina contenente il riepilogo degli esami. Se non e' possibile fare questo, 'result' verra' restituito cosi' com'e'.
-        result = {'riepilogo_esami': None}
-        url = 'https://uniparthenope.esse3.cineca.it/auth/Home.do'
-	page = self.__fetch_page(url)
-	if not page : 
-	    return result
-        
-	#Preleva il contenuto del tag 'div' che ha id="gu-boxRiepilogoEsami" facendo uso delle regex.
-	#La funzione 'compile' del modulo 're' restituisce un oggetto che rappresenta la nostra regex compilata e pronta per essere utilizzata su una stringa. Poi viene utilizzato il metodo 'search' per trovare la stringa corrispondente all'interno di 'page' e di questa viene presa la sottostringa che si trova tra le parentesi tonde della regex per evitare di includere nel risultato anche il tag di apertura e di chiusura (<div id="gu-... > e </div>). Il risultato lo poniamo in 'page' perche' il resto della pagine non ci interessa
-        p = re.compile('<div id="gu-boxRiepilogoEsami" class="breaks1 record">(.*?)</div>')
-        page = p.search(page).group(1)
-	
-	#Regex per prelevare il contenuto del tag 'dl'
-        p = re.compile('<dl[^>]+>(.*?)</dl>')
-        page = p.search(page).group(1)
-	
-	#Regex per prelevare il contenuto del tag 'dt' e del tag 'description'
-	p = re.compile('<dt>(.*?)</dt>.*?<description>(.*?)</description>')
-	#riepilogo_esami_dict e' un dizionario che conterra' tutte le informazioni relative al riepilogo esami.
-        riepilogo_esami_dict = {}
-	#Nella pagina web c'e' piu' di un tag 'dt' e di un tag 'description'. L'iteratore serve per ciclare tra tutti questi elementi
-        it = p.finditer(page)
-	#Preleva 'CFU conseguiti', 'Media Aritmetica', ecc. e questi verranni scritti con gli unserscore ed in minuscolo
-        #Es: 'match.group(1)' restituisce 'Media Aritmetica' ed 'match.group(2)' restituisce '28'
-	for match in it :
-            riepilogo_esami_dict[match.group(1).lower().replace(' ', '_')] = match.group(2)
-	#La chiave 'riepilogo_esami' del dizionario 'result' conterra' proprio 'riepilogo_esami_dict'
-	result['riepilogo_esami'] = riepilogo_esami_dict
-	#'result' viene codificato in formato JSON con le chiavi in ordine alfabetico
-        return result
 
-    def dati_personali(self) : 
-        
-	#Scarichiamo la pagina contenente i dati personali dello studente. Se 'username' e 'password' non sono corrette allora verra' restituita la struttura dati 'result' cosi' com'e'
-        result = {'dati_personali': None}
-        url = 'https://uniparthenope.esse3.cineca.it/auth/studente/Anagrafica/Anagrafica.do'
-	page = self.__fetch_page(url)
-	if not page : 
-	    return result
-
-	#Preleva il contenuto dal tag 'div' con id="idsummaryFormNestedTemplateBox_1"
-	p = re.compile('<div[^>]*id="idsummaryFormNestedTemplateBox_1"[^>]*>(.*?)</div>')
-	page = p.search(page).group(1)
-
-	#Preleva il contenuto del tag 'dl'
-	p = re.compile('<dl[^>]*>(.*?)</dl>')
-	page = p.search(page).group(1)
-
-        #Regex per prelevare il contenuto del tag 'dt' ed del tag 'description'
-	p = re.compile('<dt>(.*?)</dt>.*?<description>(.*?)</description>')
-	#Nella pagina web c'e' piu' di un tag 'dt' e di un tag 'description'. L'iteratore serve per ciclare tra tutti questi elementi
-	it = p.finditer(page)
-	#Il dizionario 'dati_personali_dict' conterra' tutti i dati personali dello studente.
-	dati_personali_dict = {}
-	#Preleva 'nome', 'codice fiscale', ecc. e questi verranno scritti con gli unserscore ed in minuscolo
-	#Es: il metodo 'match.group(1)' restituisce 'Nome' e 'match.group(2)' restituisce 'Pippo'
-	for match in it : 
-	    dati_personali_dict[match.group(1).replace(' ', '_').lower()] = match.group(2)
-
-	#La chiave 'dati_personali' del dizionario 'result' conterra' proprio 'dati_personali_dict'
-        result['dati_personali'] = dati_personali_dict
-	#'result' viene convertito in formato JSON con le chiavi in ordine alfabetico
-	return result
-
-    def residenza(self) : 
-        #Scarica la pagina con i dati sulla residenza dello studente. Se 'username' e 'password' non sono corrette, restituisce la struttura dati 'result' cosi' com'e'
-	result = {'residenza': None}
-        url = 'https://uniparthenope.esse3.cineca.it/auth/studente/Anagrafica/Anagrafica.do'
-        page = self.__fetch_page(url)
-	if not page : 
-	    return result
-
-	#Regex per prelevare il contenuto del tag 'div' con id="idsummaryFormNestedTemplateBox_2"
-	p = re.compile('<div[^>]*id="idsummaryFormNestedTemplateBox_2"[^>]*>(.*?)</div>')
-	#Il metodo 'group(1)' restituisce il contenuto del tag trovato
-	page = p.search(page).group(1)
-	#Regex per prelevare il contenuto del tag 'dl'
-	p = re.compile('<dl[^>]*>(.*?)</dl>')
-	#Il metodo 'group(1)' restituisce il contenuto del tag 'dl'
-	page = p.search(page).group(1)
-	#Regex per prelevare il contenuto del tag 'dt' e del tag 'description'
-	p = re.compile('<dt>(.*?)</dt>.*?<description>(.*?)</description>')
-	#Nella pagina web c'e' piu' di un tag 'dt' e di un tag 'description'. L'iteratore serve per ciclare tra tutti questi elementi
-	it = p.finditer(page)
-	#Il dizionario 'residenza_dict' conterra' i dati sulla residenza dello studente
-	residenza_dict = {}
-	#Preleva 'Comune/Citta'', 'Numero Civico', ecc.
-	#Le chiavi del dizionario saranno scritte con gli underscore ed in minuscolo
-	#Il metodo 'group(1)' restituisce, ad esempio, 'Numero Civico' e 'group(2)' restituisce, ad esempio, 41
-	for match in it : 
-	    residenza_dict[match.group(1).lower().replace(' ', '_')] = match.group(2)
-
-        #La chiave 'residenza' del dizionario 'result' avra' come valore proprio il dizionario 'residenza_dict'
-	result['residenza'] = residenza_dict
-	#'result' viene codificato in formato JSON con le chiavi in ordine alfabetico
-	return result
-
-    def domicilio(self) : 
-        #Scarica la pagina relativa al domicilio dello studente. Il codice e' identico al metodo precedente. Per i commenti vedere il metodo qui sopra
-        result = {'domicilio': None}
-        url = 'https://uniparthenope.esse3.cineca.it/auth/studente/Anagrafica/Anagrafica.do'
-        page = self.__fetch_page(url)
-	if not page : 
-	    return result
-	#Regex per prelevare il contenuto del tag 'div' con id="idsummaryFormNestedTemplateBox_3"
-	p = re.compile('<div[^>]*id="idsummaryFormNestedTemplateBox_3"[^>]*>(.*?)</div>')
-	page = p.search(page).group(1)
-	p = re.compile('<dl[^>]*>(.*?)</dl>')
-	page = p.search(page).group(1)
-	p = re.compile('<dt>(.*?)</dt>.*?<description>(.*?)</description>')
-	it = p.finditer(page)
-	domicilio_dict = {}
-	for match in it : 
-	    domicilio_dict[match.group(1).lower().replace(' ', '_')] = match.group(2)
-
-        result['domicilio'] = domicilio_dict
-	return result
-
-    def libretto(self) : 
-        #Scarica la pagina del libretto dello studente
+    def libretto(self):
         result = {'libretto': None}
         url = 'https://uniparthenope.esse3.cineca.it/auth/studente/Libretto/LibrettoHome.do'
-	page = self.__fetch_page(url)
-	#Se la pagina non puo' essere scaricata (se 'username' e 'password' sono sbagliate) restituisce la struttura 'result' cosi' com'e'
-	if not page : 
-	    return result
-	
-	#Regex per prelevare tutte le tabelle della pagina
+        page = self.__fetch_page(url) #Ho controllato e la pagina viene presa con successo
+        if not page :
+            return json.dumps(result)
+        #soup=BeautifulSoup(page) #Utilizziamo BeautifulSoap per analizzare la pagina ottenuta
+        #tables=soup.find_all('td',class_="detail_table") #Preleviamo tutte le tabelle
+        #Regex per prelevare tutte le tabelle della pagina
 	table_pattern = re.compile('<table[^>]*>.*?</table>')
 	#Lista contenente tutte le tabelle
 	tables = table_pattern.findall(page)
@@ -274,8 +97,15 @@ class Scraper :
 	#Lista che conterra' le intestazioni
 	th_list = []
 	#Ciascuna intestazione avra' gli underscore e sara' in minuscolo
-	for match in it : 
+	for match in it :
 	    th_list.append(match.group(1).lower().replace(' ', '_'))
+	
+	for i in range(0,len(th_list)):
+	    if(th_list[i]=='voto_-_data_esame'):
+	        th_list[i] = 'voto'
+	    if(th_list[i]=='attivit&agrave;_didattiche'):
+	        th_list[i]='attivita'
+	#print(th_list)
 	
 	#Numero di elementi nella lista delle righe
 	tr_list_len = len(tr_list)
@@ -288,15 +118,15 @@ class Scraper :
 	a_pattern = re.compile('<a[^>]*>(.*?)</a>')
 	#Regex per prelevare il contenuto del tag 'alt'
 	alt_pattern = re.compile('alt="(.*?)"')
-        
+
 	#Cicliamo tra le varie righe della tabella per prelevare tutte le informazioni relative agli insegnamenti.
 	#Partiamo dall'indice 1 perche' l'indice 0 corrisponde alla riga contenente le intestazioni e queste ultime le abbiamo gia' prelevate.
-	for i in range(1, tr_list_len) : 
+	for i in range(1, tr_list_len) :
 	    #Aggiungiamo un dizionario alla lista (ogni dizionario conterra' le informazioni relative ad un insegnamento)
             libretto_list.append({})
 	    #Creiamo una lista di tutte le informazioni presenti in una riga della tabella (la riga relativa ad un insegnamento)
 	    td_list = td_pattern.findall(tr_list[i])
-	    
+
 	    #Anno Di Corso
 	    libretto_list[i-1][th_list[0]] = td_list[0]
 
@@ -304,7 +134,7 @@ class Scraper :
 	    libretto_list[i-1][th_list[1]] = a_pattern.search(td_list[1]).group(1)
 
 	    #Peso in crediti
-	    libretto_list[i-1][th_list[2]] = td_list[6]
+	    #libretto_list[i-1][th_list[2]] = td_list[6]
 
 	    #Stato
 	    libretto_list[i-1][th_list[3]] = alt_pattern.search(td_list[7]).group(1)
@@ -313,155 +143,335 @@ class Scraper :
 	    libretto_list[i-1][th_list[4]] = td_list[8]
 
 	    #Voto - Data Esame
-	    libretto_list[i-1][th_list[5]] = td_list[9]
+	#    td_list[9]= filter(None,td_list[9])
+	    unicode_string = unicode(td_list[9],"UTF-8")
+	    unicode_string = unicode_string.replace('&nbsp;-&nbsp;',' - ')
+	    libretto_list[i-1][th_list[5]] = unicode_string
+	#    print(unicode_string)
 
-        #La chiave 'librettro' della struttura 'result' avra' come valore proprio 'libretto_list' 
+
+
+
+
+#        libretto_list['attivita'] = libretto_list.pop(attivit&agrave;_didattiche)
+#        print(libretto_list[1])
+#        temp = '\"stato\"'
+#        for i in range(0,len(libretto_list)):
+#            if(libretto_list[i]== ''):
+#                print(libretto_list[i])
+#                break;
+#        print(libretto_list)
+        #La chiave 'librettro' della struttura 'result' avra' come valore proprio 'libretto_list'
 	result['libretto'] = libretto_list
 	#'result' viene codificato in formato JSON con le chiavi in ordine alfabetico
-        return result
+        #return jsonify(json.dumps(result, sort_keys=True))
+        return json.dumps(result, sort_keys=True)
 
-    def pagamenti(self) : 
-        #Scarichiamo la pagina contenente i pagamenti
-        result = {'pagamenti': None}
+
+
+
+    def riepilogo_esami(self) :
+
+	#Scarichiamo la pagina contenente il riepilogo degli esami. Se non e' possibile fare questo, 'result' verra' restituito cosi' com'e'.
+        result = {'riepilogo_esami': None}
+        url = 'https://uniparthenope.esse3.cineca.it/auth/Home.do'
+	page = self.__fetch_page(url)
+	if not page :
+	    return result
+
+	#Preleva il contenuto del tag 'div' che ha id="gu-boxRiepilogoEsami" facendo uso delle regex.
+	#La funzione 'compile' del modulo 're' restituisce un oggetto che rappresenta la nostra regex compilata e pronta per essere utilizzata su una stringa. Poi viene utilizzato il metodo 'search' per trovare la stringa corrispondente all'interno di 'page' e di questa viene presa la sottostringa che si trova tra le parentesi tonde della regex per evitare di includere nel risultato anche il tag di apertura e di chiusura (<div id="gu-... > e </div>). Il risultato lo poniamo in 'page' perche' il resto della pagine non ci interessa
+        p = re.compile('<div id="gu-boxRiepilogoEsami" class="breaks1 record">(.*?)</div>')
+        page = p.search(page).group(1)
+	
+	#Regex per prelevare il contenuto del tag 'dl'
+        p = re.compile('<dl[^>]+>(.*?)</dl>')
+        page = p.search(page).group(1)
+        #print(type(page))
+        unicode_string = unicode(page,"UTF-8")
+        unicode_string = unicode_string.replace('&nbsp;<br>','')
+        #print(unicode_string)
+	
+	#Regex per prelevare il contenuto del tag 'dt' e del tag 'description'
+	p = re.compile('<dt>(.*?)</dt>.*?<dd>(.*?)</dd>')
+	#riepilogo_esami_dict e' un dizionario che conterra' tutte le informazioni relative al riepilogo esami.
+        riepilogo_esami_dict = {}
+	#Nella pagina web c'e' piu' di un tag 'dt' e di un tag 'description'. L'iteratore serve per ciclare tra tutti questi elementi
+        it = p.finditer(unicode_string)
+	#Preleva 'CFU conseguiti', 'Media Aritmetica', ecc. e questi verranni scritti con gli unserscore ed in minuscolo
+        #Es: 'match.group(1)' restituisce 'Media Aritmetica' ed 'match.group(2)' restituisce '28'
+	for match in it :
+            riepilogo_esami_dict[match.group(1).lower().replace(' ', '_')] = match.group(2)
+	#La chiave 'riepilogo_esami' del dizionario 'result' conterra' proprio 'riepilogo_esami_dict'
+	result['riepilogo_esami'] = riepilogo_esami_dict
+	print(result)
+	#'result' viene codificato in formato JSON con le chiavi in ordine alfabetico
+        return json.dumps(result, sort_keys=True)
+
+
+
+    def pannello_di_controllo(self):
+        result = {'pannello_di_controllo':None}
+        url = 'https://uniparthenope.esse3.cineca.it/auth/Home.do'
+        page = self.__fetch_page(url)
+        if not page:
+            return result
+
+#Troviamo la tabella
+        p = re.compile('<table id="gu-homepagestudente-tablePanelControl" class="table-1" summary="Tabella contenente la situazione aggiornata dello studente">(.*?)</table>')
+        table = p.search(page).group(1)
+
+#Troviamo il tbody
+        p = re.compile('<tbody[^>]*>(.*?)</tbody>')
+        tbody_list = p.findall(table)
+
+#Troviamo i tr
+        p = re.compile('<tr[^>]*>(.*?)</tr>')
+        tr_list = p.findall(tbody_list[0])
+
+#Vengono presi tutti i td
+        p = re.compile('<td[^>]*>(.*?)</td>')
+        td_list0 = p.findall(tr_list[0]) #Preleviamo la lista dei td della prima riga
+        td_list1 = p.findall(tr_list[1]) #Preleviamo la lista dei td della seconda riga
+        td_list2 = p.findall(tr_list[2]) #Preleviamo la lista dei td della terza riga
+        td_list3 = p.findall(tr_list[3]) #Preleviamo la lista dei td della quarta riga
+
+#Preleviamo i contenuti dei tag <img> dei vari td e rimpiazziamo i valori che non ci servono
+        img0 = td_list0[1].replace('<img src=\"images/stato_esito_r.gif\">&nbsp;scadute&nbsp;-&nbsp;','').replace('<img src="images/stato_esito_a.gif">&nbsp;','') #Tasse
+        img1 = td_list1[1].replace('<img src=\"images/stato_esito_r.gif\">&nbsp;','').replace('<img src="images/stato_esito_a.gif">&nbsp;','') #Piano Carriera
+        img2 = td_list2[1].replace('<img src=\"images/stato_esito_v.gif\">&nbsp;','').replace('&nbsp;appelli disponibili','').replace('<img src="images/stato_esito_r.gif">&nbsp;','').replace('<img src="images/stato_esito_a.gif">&nbsp;','') #Appelli Disponibili
+        img3 = td_list3[1].replace('<img src=\"images/stato_esito_r.gif\">&nbsp;','').replace('&nbsp;prenotazioni','').replace('<img src="images/stato_esito_a.gif">&nbsp;','').replace('1&nbsp;','') #Iscrizioni
+
+        lista_0 = [td_list0[0],td_list1[0],td_list2[0],td_list3[0]] #Inseriamo i primi valori dei td in una lista
+        lista_1 = [img0,img1,img2,img3] #Inseriamo i valori dei tag <img> in un'altra lista
+        diz = {} #creiamo un dizionario vuoto
+
+#Associamo le chiavi con i valori
+        for i in range(0,len(lista_0)):
+            diz[lista_0[i]]= lista_1[i]
+
+        result['pannello_di_controllo'] = diz
+#        print(result)
+        return json.dumps(result,sort_keys=True)
+
+
+
+    def piano(self):
+        result = {'piano':None}
+
+        url = 'https://uniparthenope.esse3.cineca.it/auth/studente/Piani/PianiHome.do'
+        page = self.__fetch_page(url)
+        if not page:
+            return result
+
+        p = re.compile('<table cellspacing=\"0\" cellpadding=\"0\" border=\"0\" class=\"detail_table\">(.*?)</table>')
+        tables = p.findall(page) #Trovata tutte le tabelle
+
+        pattern_cod = '<th valign=\"top\" class=\"detail_table\" colspan=\"\" id=\"\" rowspan=\"\" style=\"\" width=\"5%\">.*?</th>'
+        pattern_descr = '<th valign=\"top\" class=\"detail_table\" colspan=\"4\" id=\"\" rowspan=\"\" style=\"\" width=\"35%\">.*?</th>'
+        pattern_stato = '<th valign=\"top\" class=\"detail_table\" colspan=\"\" id=\"\" rowspan=\"\" style=\"\" width=\"10%\">.*?</th>'
+        pattern_peso = '<th valign=\"top\" class=\"detail_table\" colspan=\"\" id=\"\" rowspan=\"\" style=\"\" width=\"7%\">.*?</th>'
+
+        #p = re.compile(pattern_cod)
+        #p1 = re.compile(pattern_descr)
+        #p2 = re.compile(pattern_stato)
+        #p3 = re.compile(pattern_peso)
+
+        #cod = p.findall(tables[0])
+        #descr = p1.findall(tables[0])
+        #stato = p2.findall(tables[0])
+        #peso = p3.findall(tables[0])
+
+#Lista contenente le intestazioni "codice,descrizione,stato,peso"
+        #lista_int = [cod[0].replace('<th valign=\"top\" class=\"detail_table\" colspan=\"\" id=\"\" rowspan=\"\" style=\"\" width=\"5%\">','').replace('</th>',''),descr[0].replace('<th valign=\"top\" class=\"detail_table\" colspan=\"4\" id=\"\" rowspan=\"\" style=\"\" width=\"35%\">','').replace('</th>',''),stato[0].replace('<th valign=\"top\" class=\"detail_table\" colspan=\"\" id=\"\" rowspan=\"\" style=\"\" width=\"10%\">','').replace('</th>',''),peso[0].replace('<th valign=\"top\" class=\"detail_table\" colspan=\"\" id=\"\" rowspan=\"\" style=\"\" width=\"7%\">','').replace('</th>','')]
+
+#Cerchiamo i codici esami
+        pattern_td_cod = '<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"text-align:left; \" rowspan=\"\" class=\"detail_table\">.*?</td>'
+        p = re.compile(pattern_td_cod)
+        cod_esami_t1 = p.findall(tables[0]) #Lista dei codici esami della tabella 1
+        cod_esami_t2 = p.findall(tables[1]) #Lista dei codici esami della tabella 2
+        cod_esami_t3 = p.findall(tables[2]) #Lista dei codici esami della tabella 3
+
+
+
+#Eliminiamo i pattern che non ci servono dai codici esami trovati
+        for i in range(0,len(cod_esami_t1)):
+            cod_esami_t1[i] = cod_esami_t1[i].replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"text-align:left; \" rowspan=\"\" class=\"detail_table\">','').replace('</td>','')
+
+        for i in range(0,len(cod_esami_t2)):
+            cod_esami_t2[i] = cod_esami_t2[i].replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"text-align:left; \" rowspan=\"\" class=\"detail_table\">','').replace('</td>','')
+
+        for i in range(0,len(cod_esami_t3)):
+            cod_esami_t3[i] = cod_esami_t3[i].replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"text-align:left; \" rowspan=\"\" class=\"detail_table\">','').replace('</td>','')
+
+        for i in range(0,len(cod_esami_t1)):
+            if(cod_esami_t1[i]=='01240002'):
+                cod_esami_t1[i] = 'TMOB'
+            if(cod_esami_t1[i]=='01200002'):
+                cod_esami_t1[i]='SIC'
+            if(cod_esami_t1[i]=='794'):
+                cod_esami_t1[i]='PFIN'
+
+        for i in range(0,len(cod_esami_t2)):
+            if(cod_esami_t2[i]=='01240002'):
+                cod_esami_t2[i] = 'TMOB'
+            if(cod_esami_t2[i]=='01200002'):
+                cod_esami_t2[i]='SIC'
+            if(cod_esami_t2[i]=='794'):
+                cod_esami_t2[i]='PFIN'
+
+        for i in range(0,len(cod_esami_t3)):
+            if(cod_esami_t3[i]=='01240002'):
+                cod_esami_t3[i] = 'TMOB'
+            if(cod_esami_t3[i]=='01200002'):
+                cod_esami_t3[i]='SIC'
+            if(cod_esami_t3[i]=='794'):
+                cod_esami_t3[i]='PFIN'
+
+#        print(cod_esami_t1)
+#        print(cod_esami_t2)
+#        print(cod_esami_t3)
+
+#Prendiamo tutte le descrizioni degli esami
+        pattern_td_desc = '<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"border-right: 0px none trasparent; \" rowspan=\"\" class=\"detail_table_middle legenda.*?\">.*?</td>'
+        p = re.compile(pattern_td_desc)
+        desc_esami_t1 = p.findall(tables[0])
+        desc_esami_t2 = p.findall(tables[1])
+        desc_esami_t3 = p.findall(tables[2])
+
+#Eliminiamo dai pattern trovati le parti di stringa che non ci interessano
+        for i in range(0,len(desc_esami_t1)):
+            desc_esami_t1[i] = desc_esami_t1[i].replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"border-right: 0px none trasparent; \" rowspan=\"\" class=\"detail_table_middle legenda2\">','').replace('</td>','')
+
+        for i in range(0,len(desc_esami_t2)):
+            desc_esami_t2[i] = desc_esami_t2[i].replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"border-right: 0px none trasparent; \" rowspan=\"\" class=\"detail_table_middle legenda2\">','').replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"border-right: 0px none trasparent; \" rowspan=\"\" class=\"detail_table_middle legenda1\">','').replace('</td>','')
+
+        for i in range(0,len(desc_esami_t3)):
+            desc_esami_t3[i] = desc_esami_t3[i].replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"border-right: 0px none trasparent; \" rowspan=\"\" class=\"detail_table_middle legenda2\">','').replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"border-right: 0px none trasparent; \" rowspan=\"\" class=\"detail_table_middle legenda1\">','').replace('</td>','')
+
+
+#Prendiamo tutti gli stati degli esami
+        pattern_td_stato = '<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"text-align:center; \" rowspan=\"\" class=\"detail_table\">.*?</td>'
+        p = re.compile(pattern_td_stato)
+        stato_esami_t1 = p.findall(tables[0])
+        stato_esami_t2 = p.findall(tables[1])
+        stato_esami_t3 = p.findall(tables[2])
+
+#Eliminiamo dai pattern trovati le parti di stringa che non ci interessano
+        for i in range(0,len(stato_esami_t1)):
+            stato_esami_t1[i] = stato_esami_t1[i].replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"text-align:center; \" rowspan=\"\" class=\"detail_table\">','').replace('</td>','')
+
+        for i in range(0,len(stato_esami_t2)):
+            stato_esami_t2[i] = stato_esami_t2[i].replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"text-align:center; \" rowspan=\"\" class=\"detail_table\">','').replace('</td>','')
+
+        for i in range(0,len(stato_esami_t3)):
+            stato_esami_t3[i] = stato_esami_t3[i].replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"text-align:center; \" rowspan=\"\" class=\"detail_table\">','').replace('</td>','')
+
+
+#Prendiamo tutti i pesi degli esami
+        pattern_td_peso = '<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"text-align:center; \" rowspan=\"\" class=\"detail_table_middle\">.*?</td>'
+        p = re.compile(pattern_td_peso)
+        peso_esami_t1 = p.findall(tables[0])
+        peso_esami_t2 = p.findall(tables[1])
+        peso_esami_t3 = p.findall(tables[2])
+
+#Eliminiamo dai pattern trovati le parti di stringa che non ci interessano
+        for i in range(0,len(peso_esami_t1)):
+            peso_esami_t1[i] = peso_esami_t1[i].replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"text-align:center; \" rowspan=\"\" class=\"detail_table_middle\">','').replace('</td>','')
+
+        for i in range(0,len(peso_esami_t2)):
+            peso_esami_t2[i] = peso_esami_t2[i].replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"text-align:center; \" rowspan=\"\" class=\"detail_table_middle\">','').replace('</td>','')
+
+        for i in range(0,len(peso_esami_t3)):
+            peso_esami_t3[i] = peso_esami_t3[i].replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"text-align:center; \" rowspan=\"\" class=\"detail_table_middle\">','').replace('</td>','')
+
+        diz_t1 = {}
+        diz_t2 = {}
+        diz_t3 = {}
+
+        for i in range(0,len(cod_esami_t1)):
+            diz_t1[cod_esami_t1[i]] = (desc_esami_t1[i],stato_esami_t1[i],peso_esami_t1[i])
+
+        for i in range(0,len(cod_esami_t2)):
+            diz_t2[cod_esami_t2[i]] = (desc_esami_t2[i],stato_esami_t2[i],peso_esami_t2[i])
+
+        for i in range(0,len(cod_esami_t3)):
+            diz_t3[cod_esami_t3[i]] = (desc_esami_t3[i],stato_esami_t3[i],peso_esami_t3[i])
+
+        result['piano'] = (diz_t1,diz_t2,diz_t3)
+        return json.dumps(result,sort_keys=True)
+
+
+    def pagamenti(self):
+        result = {'pagamenti':None}
         url = 'https://uniparthenope.esse3.cineca.it/auth/studente/Tasse/ListaFatture.do'
         page = self.__fetch_page(url)
-        
-	#Se 'username' e 'password' non sono corretti, restituisce la struttura 'result' cosi' com'e'
-	if not page : 
-	    return result
+        if not page:
+            return result
 
-	#Regex per prelevare il contenuto della tabella dei pagamenti
-        SearchStr ='<table cellspacing="0" cellpadding="0" border="0" class="detail_table">(.*?)</table>'
+#        print(json.dumps(page))
 
-        p = re.search(SearchStr.decode('utf-8'), page.decode('utf-8'), re.I | re.U)
-        table = p.groups()
-	
-	#Regex per prelevare il contenuto delle righe della tabella
-	pattern = '<tr>(.*?)</tr>'
-	#Crea una 
-	tr_list = re.findall(pattern,table)
-	tr_list_len = len(tr_list)
-	
-	#Regex per prelevare le intestazioni
-	p = re.compile('<th[^>]*>(.*?)</th>')
-	#Iteratore per tra le varie intestazioni
-	it = p.finditer(tr_list[0])
-	#Lista che conterra' le intestazioni
-	th_list = []
-	#Ciascuna intestazione verra' scritta con gli unserscore ed in minuscolo
-	for match in it : 
-	    th_list.append(match.group(1).lower().replace(' ', '_'))
+#Troviamo la tabella che ci interessa
+        pattern_table = '<table cellspacing=\"0\" cellpadding=\"0\" border=\"0\" class=\"detail_table\">.*?</table>'
+        p = re.compile(pattern_table)
+        table = p.findall(page)
 
-	#Lista dei pagamenti. Ciascun elemento della lista e' un dizionario
-	pagamenti_list = []
-	
-	#Regex per prelevare il contenuto del tag 'td'
-	td_pattern = re.compile('<td[^>]*>(.*?)</td>')
-	#Regex per prelevare il contenuto del tag 'a'
-	a_pattern = re.compile('<a[^>]*>(.*?)</a>')
-	#Regex per prelevare il contenuto del tag 'alt'
-	alt_pattern = re.compile('alt="(.*?)"')
-	
-	#Cicliamo tra le righe della tabella. L'indice di partenza e' 1 perche' l'indice 0 corrisponde alla riga delle intestazioni che sono state gia' prelevate
-	for i in range(1, tr_list_len) : 
-	    #Aggiungiamo un dizionario vuoto alla lista
-	    pagamenti_list.append({})
-	    
-	    #Crea una lista dove ogni elemento e' il contenuto di un tag 'td'
-	    td_list = td_pattern.findall(tr_list[i])
-	    #Numero di elementi della lista appena creata
-	    td_list_len = len(td_list)
-	    
-	    #Preleva la 'Fattura'
-	    pagamenti_list[i-1][th_list[0]] = a_pattern.search(td_list[0]).group(1)
-	    
-	    #Preleva 'Codice Bollettino', 'Anno', ...(tranne Stato)
-	    for j in range(1, td_list_len-1) : 
-	        pagamenti_list[i-1][th_list[j]] = td_list[j]
-	    
-	    #Preleva 'Stato'
-	    pagamenti_list[i-1][th_list[td_list_len-1]] = alt_pattern.search(td_list[td_list_len-1]).group(1)
+#Prendiamo la lista dei 'codici bollettino' di ogni pagamento
+        pattern_td_codici_bollettino = '<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"\" rowspan=\"1\" class=\"detail_table\">(\d{16,}|\d{,10})</td>'
+        p = re.compile(pattern_td_codici_bollettino)
+        lista_codici = p.findall(table[0])
+        lista_codici = filter(None,lista_codici) #Eliminiamo gli spazi vuoti
 
-        #La chiave 'pagamento' della struttura 'result' avra' come valore proprio 'pagamenti_list'
-	result['pagamenti'] = pagamenti_list
-	#Codifica 'result' in formato JSON con le chiavi in ordine alfabetico
-        
-	return result
 
-    def prenotazioni_effettuate(self) : 
-        #Scarica la pagina relativa alle agli esami prenotati
-        result = {'prenotazioni_effettuate': None}
-        url = 'https://uniparthenope.esse3.cineca.it/auth/studente/Appelli/BachecaPrenotazioni.do'
-        page = self.__fetch_page(url)
-	#Se 'username' e 'password' non sono corrette restituisce la struttura 'result' cosi' com'e'
-	if not page : 
-	    return result
-	
-	#Regex per estrarre le tabelle della pagina. Con questa regex non siamo in grado di estrarre tutte le tabelle, ma quelle che non vengono estratte non servono al nostro scopo
-	p = re.compile('<table[^>]*>.*?</table>')
-	#Lista di tutte le tabelle
-	tables = p.findall(page)
-	#Se il numero di tabelle e' inferiore o uguale a 5 significa che non sono stati prenotati esami e viene restituito 'result' cosi' com'e'. Quando viene prenotato un solo esame il numero di tabelle passa a 6, e cosi' via
-	if(len(tables) <= 5) : 
-	    return result
-	
-	#Tra le tabelle ottenute prende solo quelle relative agli esami prenotati
-	tables_tmp = []
-	tables_len = len(tables)
-	for i in range(4, tables_len, 2) : 
-	    tables_tmp.append(tables[i])
-	del tables
-	#'tables' contiene solo le tabelle degli esami prenotati, le altre tabelle sono state cancellate
-	tables = tables_tmp
-	#Numero di tabelle estratte
-	tables_len = len(tables)
-	
-	#Lista che conterra' le prenotazioni
-	prenotazioni_effettuate_list = []
-	
-	#Regex per estrarre il contenuto del tag 'tr'
-	tr_pattern = re.compile('<tr[^>]*>(.*?)</tr>')
-	#Regex per estrarre il contenuto del tag 'th'
-	th_pattern = re.compile('<th[^>]*>(.*?)</th>')
-	#Regex per estrarre il contenuto del tag 'td'
-	td_pattern = re.compile('<td[^>]*>(.*?)</td>')
+#Prendiamo la lista degli anni.In lista2 saranno formattati gli anni in modo corretto.
+        pattern_td_anno = '<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"\" rowspan=\"1\" class=\"detail_table\">(\d{2})\/(\d{2,2})</td>'
+        p = re.compile(pattern_td_anno)
+        lista_td_anno = p.findall(table[0])
+        lista2 = []
+        for i in range(0,len(lista_td_anno)):
+            lista2.append(lista_td_anno[i][0])
+            lista2[i] = lista2[i]+'/'+lista_td_anno[i][1]
 
-	#Cicliamo tra le varie tabelle
-	for i in range(0, tables_len) :
-	    #Aggiungiamo un dizionario vuoto alla lista delle prenotazioni
-	    prenotazioni_effettuate_list.append({})
 
-	    #Estraiamo tutte le righe della tabella dell'esame prenotato
-	    #tr_list[0] contiene il nome dell'esame
-	    #tr_list[1] contiene il numero di iscrizione dell'esame
-	    #tr_list[2] contiene il tipo di prova dell'esame (scritto o orale)
-	    #Da tr_list[3] fino alla fine ci sono le restanti informazioni (giorno, ora, aula, ecc.)
-	    tr_list = tr_pattern.findall(tables[i])
-	    
-	    #Preleviamo il nome dell'esame
-	    prenotazioni_effettuate_list[i]['nome'] = th_pattern.search(tr_list[0]).group(1)
+#Prendiamo tutta la lista delle descrizioni
+        pattern_td_descrizione ='<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"\" rowspan=\"\" class=\"detail_table\">\w+.*?</td>'
+        p = re.compile(pattern_td_descrizione)
+        lista_desc = p.findall(table[0])
+        for i in range(0,len(lista_desc)):
+            lista_desc[i] = lista_desc[i].replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"\" rowspan=\"\" class=\"detail_table\">','').replace('</td>','')
 
-	    #Preleviamo il numero di iscrizione dell'esame facendo attenzione che ci sono i due puntini.
-	    #Es: 'Numero Iscrizione: 1 su 2', noi dobbiamo estrarre solo cio' che si trova alla destra dei due puntini
-	    prenotazioni_effettuate_list[i]['numero_iscrizione'] = th_pattern.search(tr_list[1]).group(1).split(':')[1]
 
-	    #Preleviamo il tipo di prova. Stesso discorso di prima per quanto riguarda i due puntini
-	    prenotazioni_effettuate_list[i]['tipo_prova'] = th_pattern.search(tr_list[2]).group(1).split(':')[1]
+#Prendiamo tutta la lista delle scadenze.In lista3 saranno formattate le scadenze in modo corretto
+#            pattern_td_scadenza = '<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"\" rowspan=\"1\" class=\"detail_table\">(\d{2})\/(\d{2,2})\/(\d{4})</td>'
+#            p = re.compile(pattern_td_scadenza)
+#            lista_td_scad = p.findall(table[0])
+#            lista3 = []
+#            for i in range(len(lista_td_scad)):
+#                lista3.append(lista_td_scad[i][0])
+#                lista3[i] = lista3[i]+'/'+lista_td_scad[i][1]+'/'+lista_td_scad[i][2]
 
-	    #Lista dei nomi delle intestazioni delle restanti informazioni
-	    #Es: Giorno, Ora, ecc.
-	    resto_header_list = th_pattern.findall(tr_list[3])
-	    #Lista dei valori delle intestazioni delle restanti informazioni
-	    #Es: 20/11/2000, 15:00, ecc.
-	    resto_value_list = td_pattern.findall(tr_list[5])
 
-	    #'prenotazioni_effettuate_list' contiene i dizionari relativi agli esami prenotati.
-	    #Le chiavi dei dizionario vengono scritti con gli underscore ed in minuscolo
-	    for j in range(0, 6) : 
-	        prenotazioni_effettuate_list[i][resto_header_list[j].lower().replace(' ', '_')] = resto_value_list[j]
+#Prendiamo tutti gli importi
+            pattern_td_importo = '<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"text-align:right; \" rowspan=\"1\" class=\"detail_table\">.*?</td>'
+            p = re.compile(pattern_td_importo)
+            lista_td_imp = p.findall(table[0])
+            for i in range(0,len(lista_td_imp)):
+                lista_td_imp[i] = lista_td_imp[i].replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"text-align:right; \" rowspan=\"1\" class=\"detail_table\">&euro;','').replace('</td>','')
+                lista_td_imp[i] = lista_td_imp[i]+' euro'
 
-        #La chiave 'prenotazioni_effettuate' della struttura 'result' ha come valore proprio 'prenotazioni_effettuate_list
-	result['prenotazioni_effettuate'] = prenotazioni_effettuate_list
-	#Codifica 'result' in formato JSON con le chiavi in ordine alfabetico
-	return result
 
+#Prendiamo tutti gli stati dei pagamenti
+            pattern_td_stato = '<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"text-align:left; \" rowspan=\"1\" class=\"detail_table\">.*?</td>'
+            p = re.compile(pattern_td_stato)
+            lista_td_stati = p.findall(table[0])
+            for i in range(0,len(lista_td_stati)):
+                lista_td_stati[i] = lista_td_stati[i].replace('<td id=\"\" width=\"\" valign=\"\" colspan=\"\" style=\"text-align:left; \" rowspan=\"1\" class=\"detail_table\">','').replace('</td>','').replace('<img hspace=\"5 px\" src=\"images/semaf_v.gif\" title=\"','').replace('\">','').replace('<img hspace=\"5 px\" src=\"images/semaf_r.gif\" title=\"','')
+
+
+
+        diz = {}
+        for i in range(0,len(lista_desc)):
+            diz[i] = (lista_desc[i],lista_td_imp[i],lista_td_stati[i])
+
+        result['pagamenti'] = diz
+        return json.dumps(result,sort_keys=True)
