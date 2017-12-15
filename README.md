@@ -2,9 +2,16 @@
 
 ### Installazione con virtualenv ###
 
+
+- mkdir dev
+- cd dev/
+- git clone https://github.com/hpsc-smartlab/esse3api.git
+- cd esse3api/
 - virtualenv venv
 - . venv/bin/activate
+- pip install -r requirements.txt 
 - pip install --editable .
+- ./bin/esse3api 
 
 ### Server sicuro di produzione
 
