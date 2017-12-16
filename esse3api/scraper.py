@@ -75,7 +75,6 @@ class Scraper:
 
         return page_str
 
-#Questa funziona bene
     def login(self) :
         result = {'login': '0' }
         url = 'https://uniparthenope.esse3.cineca.it/auth/Home.do'
@@ -89,7 +88,6 @@ class Scraper:
         return json.dumps(result)
 
 
-#Questa funziona bene
     def libretto(self):
         result = {'libretto': None}
         url = 'https://uniparthenope.esse3.cineca.it/auth/studente/Libretto/LibrettoHome.do'
@@ -190,7 +188,6 @@ class Scraper:
 
 
 
-#ok questa funziona bene
     def riepilogo_esami(self) :
 
         #Scarichiamo la pagina contenente il riepilogo degli esami
@@ -231,7 +228,6 @@ class Scraper:
 
 
 
-#Scritta da me e va bene!
     def pannello_di_controllo(self):
         result = {'pannello_di_controllo':None}
         url = 'https://uniparthenope.esse3.cineca.it/auth/Home.do'
@@ -279,7 +275,6 @@ class Scraper:
 
 
 
-#Scritta da me e va bene!
     def piano(self):
         result = {'piano':None}
 
@@ -433,8 +428,7 @@ class Scraper:
 
 
 
-#Scritta da me e funziona.Forse va migliorata poichè sembra che il dizionario di ritorno non torni tutti i valori anche se
-#prese singolarmente ogni lista ritorna tutti i valori dell'utente
+
     def pagamenti(self):
         result = {'pagamenti':None}
         url = 'https://uniparthenope.esse3.cineca.it/auth/studente/Tasse/ListaFatture.do'
