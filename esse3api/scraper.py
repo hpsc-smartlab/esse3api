@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 import json
 import pycurl
-#from flask import jsonify
 from pycurl import Curl
 from StringIO import StringIO
 import re
-#from bs4 import BeautifulSoup
-#import urllib2
-#import urllib
+import tempfile
+import os
+from bs4 import BeautifulSoup
 
 class Scraper:
 
@@ -19,7 +18,9 @@ class Scraper:
         useragent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.81 Safari/537.36'
         encoding = 'gzip, deflate, sdch'
         httpheader = ['Accept: text/html, application/xhtml+xml, application/xml; q=0.9, image/webp, */*; q=0.8', 'Accept-Language: it-IT, it; q=0.8, en-US; q=0.6, en; q=0.4', 'Host:uniparthenope.esse3.cineca.it']
-        cookiefile = 'cookiefile'
+
+        tf = tempfile.NamedTemporaryFile()
+        cookiefile=tf.name+".cookiefile"
 
         page = StringIO()
         c = Curl()
@@ -73,6 +74,10 @@ class Scraper:
         p = re.compile('\\s+')
         page_str = p.sub(" ", page_str)
 
+	try:
+            os.remove(cookiefile)
+	except:
+	    pass
         return page_str
 
     def login(self) :
@@ -335,14 +340,6 @@ class Scraper:
             if(cod_esami_t2[i]=='01200002'):
                 cod_esami_t2[i]='SIC'
             if(cod_esami_t2[i]=='794'):
-
-
-        for i in range(0,len(cod_esami_t2)):
-            if(cod_esami_t2[i]=='01240002'):
-                cod_esami_t2[i] = 'TMOB'
-            if(cod_esami_t2[i]=='01200002'):
-                cod_esami_t2[i]='SIC'
-            if(cod_esami_t2[i]=='794'):
                 cod_esami_t2[i]='PFIN'
 
         for i in range(0,len(cod_esami_t3)):
@@ -504,4 +501,31 @@ class Scraper:
         result['pagamenti'] = diz
         return json.dumps(result,sort_keys=True)
 
+    def dati_anagrafici(self):
+        result = {'anagrafica': None }
+        url = 'https://uniparthenope.esse3.cineca.it/auth/studente/Anagrafica/Anagrafica.do'
+        page = self.__fetch_page(url) #Ho controllato e la pagina viene presa con successo
+        if not page :
+            return json.dumps(result)
+
+        soup = BeautifulSoup(page,"html.parser")
+
+        #Prepara i risultati
+        anagrafica_dict = {}
+
+        #for link in soup.find_all('div'):
+        #    print(link.get('id'))
+        div=soup.find("div",{"id":"idsummaryFormNestedTemplateBox_1"})
+        dl=div.find("dl")
+        current_dt=None
+        for dlitem in dl:
+            line=str(dlitem)
+            print line
+
+
+	# Salvataggio dei risultati
+        result['anagrafica'] = anagrafica_dict
+
+        #'result' viene codificato in formato JSON con le chiavi in ordine alfabetico
+        return json.dumps(result, sort_keys=True)
 
