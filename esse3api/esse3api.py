@@ -113,15 +113,15 @@ parser = api.parser()
 parser.add_argument('username', help='The username', location='form')
 parser.add_argument('password', help='The passowrd', location='form')
 
-@api.route('/dati_personali')
-class DatiPersonali(Resource):
+@api.route('/dati_anagrafici')
+class DatiAnagrafici(Resource):
     @api.doc(parser=parser)
     def post(self):
-        """Recuper i dati personali
+        """Recuper i dati anagrafici
         :param: username: Nome utente
         :param: password: Password
 
-        :example: /dati_personali
+        :example: /dati_anagrafici
 
         :returns:  json -- I dati personali
         -------------------------------------------------------------------------------------------
@@ -134,12 +134,12 @@ class DatiPersonali(Resource):
         log.info(username)
         
         s = Scraper(username, password)
-        return jsonify(s.dati_personali())   
+        return jsonify(s.dati_anagrafici())   
 
 @api.route('/login')
 class Login(Resource):
     @api.doc(parser=parser)
-    def login(self):
+    def post(self):
         """Permette il login al portale esse3
         :param: username: Nome utente
         :param: password: Password
@@ -281,6 +281,46 @@ class PrenotazioniEffettuate(Resource):
 
         s = Scraper(username, password)
         return jsonify(s.prenotazioni_effettuate())
+
+@api.route('/piano')
+class Piano(Resource):
+    @api.doc(parser=parser)
+    def post(self) :
+        """Restituisce il piano di studio dello studente
+        :param: username: Nome utente
+        :param: password: Password
+
+        :example: /piano
+
+        :returns:  json -- Lista degli esami sostenuti
+        -------------------------------------------------------------------------------------------
+        """
+        args = parser.parse_args(strict=True)
+        username = args['username']
+        password = args['password']
+
+        s = Scraper(username, password)
+        return jsonify(s.piano())
+
+@api.route('/pannello')
+class Piano(Resource):
+    @api.doc(parser=parser)
+    def post(self) :
+        """Restituisce il pannello di controllo dello studente
+        :param: username: Nome utente
+        :param: password: Password
+
+        :example: /pannello
+
+        :returns:  json -- Lista degli esami sostenuti
+        -------------------------------------------------------------------------------------------
+        """
+        args = parser.parse_args(strict=True)
+        username = args['username']
+        password = args['password']
+
+        s = Scraper(username, password)
+        return jsonify(s.pannello_di_controllo())
 
 if __name__ == '__main__':
     app.debug = True
