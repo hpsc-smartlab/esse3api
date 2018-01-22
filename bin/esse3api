@@ -10,6 +10,7 @@ DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
 cd $DIR
 cd ..
+. venv/bin/activate
 export ESSE3API_ROOT=$PWD/esse3api/
 echo "ESSE3API_ROOT=$ESSE3API_ROOT"
 cd $ESSE3API_ROOT
