@@ -303,7 +303,7 @@ class Piano(Resource):
         return jsonify(s.piano())
 
 @api.route('/pannello')
-class Piano(Resource):
+class Pannello(Resource):
     @api.doc(parser=parser)
     def post(self) :
         """Restituisce il pannello di controllo dello studente
